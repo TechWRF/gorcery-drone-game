@@ -1,2 +1,2 @@
-# gorcery-drone-game
+# grocery-drone-game
 WIP
