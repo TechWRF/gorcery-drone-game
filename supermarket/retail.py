@@ -4,36 +4,45 @@ import random
 from dispatcher import Dispatch
 import os
 import uuid
+import configparser
+import json
 
 class SuperMarket():
-  def __init__(self, drone_n = 10, time_factor = 1, log_path = 'data.csv'):
-    # TODO: move config to file
-    #market config
-    self.weight_ranges_start = [1, 15, 30, 60, 90, 100] # in kg
-    self.weight_ranges_probs = (47, 38, 10, 4, 1, 0)
-
-    self.distance_ranges_start = [1, 3, 5, 7, 9, 10] # in km
-    self.distance_ranges_probs = (53, 31, 11, 3, 2, 0)
-
-    self.price_per_km = 0.5
-    self.price_per_kg = 0.5
-
-    # drone config
-    # drone_n
-    self.max_drone_load = 30 # in kg
-    self.max_drone_speed = 75 # in km/s
-
-    # general config
-    self.time_factor = time_factor
+  def __init__(self, config_path = 'supermarket.ini'):
+    self.read_config(config_path)
   
     self.drone_params = {}
     self.param_names = ['order_id', 'order_placed_at', 'weight', 'distance', 'packaging_duration', 'price', 'order_sent_at', 'order_completed_at']
-    [self.init_drone_params(idx) for idx in range(drone_n)]
+    [self.init_drone_params(idx) for idx in range(self.drone_n)]
 
-    self.log_path = log_path
     self.init_log()
 
+  def read_config(self, config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    self.weight_ranges_start = json.loads(config['MARKET']['weight_ranges_start'])
+    self.weight_ranges_probs = json.loads(config['MARKET']['weight_ranges_probs'])
+
+    self.distance_ranges_start = json.loads(config['MARKET']['distance_ranges_start'])
+    self.distance_ranges_probs = json.loads(config['MARKET']['distance_ranges_probs'])
+
+    self.price_per_km = float(config['MARKET']['price_per_km'])
+    self.price_per_kg = float(config['MARKET']['price_per_kg'])
+
+    self.drone_n = int(config['DRONE']['drone_n'])
+    self.max_drone_load = float(config['DRONE']['max_drone_load'])
+    self.max_drone_speed = float(config['DRONE']['max_drone_speed'])
+
+    self.time_factor = int(config['GENERAL']['time_factor'])
+    self.log_path = config['GENERAL']['log_path']
+    if len(os.path.split(self.log_path)[0]) == 0:
+      self.log_path = os.path.join(os.getcwd(), self.log_path)
+
   def init_log(self):
+    if os.path.isdir(os.path.split(self.log_path)[0]) is False:
+      raise Exception(f'Please create required dirs manually for: {self.log_path}')
+    
     if os.path.isfile(self.log_path) is False: 
       with open(self.log_path, 'w') as f:
         f.write(','.join(['drone_idx'] + self.param_names))
@@ -114,13 +123,5 @@ class SuperMarket():
       sleep(0.1)
 
 if __name__ == '__main__':
-  time_factor = 10
-  drone_n = 10
-
-  log_dir = os.path.join(os.getcwd(), 'supermarket_data')
-  log_path = os.path.join(log_dir, 'data.csv')
-  if os.path.isdir(log_dir) is False:
-    os.mkdir(log_dir)
-
-  super_market = SuperMarket(drone_n, time_factor, log_path)
+  super_market = SuperMarket()
   super_market.open_shop()

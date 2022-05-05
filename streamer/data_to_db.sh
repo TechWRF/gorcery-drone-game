@@ -21,7 +21,9 @@ setup_db() {
 }
 
 stream_data() {
-  tail -f $supermarket_data_path -n +2 | while read; do
+  data_path=$(sed -rn '/^log_path = (.+)/p' $config_path | sed "s/log_path = //g")
+
+  tail -f $data_path -n +2 | while read; do
     IFS=',' read -r -a row_arr <<< $REPLY
     for i in 1 2 7 8; do row_arr[i]="'${row_arr[i]}'"; done
     for i in {0..7}; do row_arr[i]="${row_arr[i]},"; done
@@ -37,8 +39,7 @@ stream_data() {
 }
 
 db_name='supermarket'
-# TODO: add to config file
-supermarket_data_path=$PWD/supermarket_data/data.csv
+config_path='supermarket.ini'
 
 setup_db
 stream_data
