@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import random
 from dispatcher import Dispatch
 import os
+import uuid
 
 class SuperMarket():
   def __init__(self, drone_n = 10, time_factor = 1, log_path = 'data.csv'):
@@ -26,7 +27,7 @@ class SuperMarket():
     self.time_factor = time_factor
   
     self.drone_params = {}
-    self.param_names = ['order_placed_at', 'weight', 'distance', 'packaging_duration', 'price', 'order_sent_at', 'order_completed_at']
+    self.param_names = ['order_id', 'order_placed_at', 'weight', 'distance', 'packaging_duration', 'price', 'order_sent_at', 'order_completed_at']
     [self.init_drone_params(idx) for idx in range(drone_n)]
 
     self.log_path = log_path
@@ -72,6 +73,7 @@ class SuperMarket():
     return [drone_idx for drone_idx, params in self.drone_params.items() if params['is_dispatched'] is None]
 
   def command_dispatch(self, drone_idx, order_placed_at, weight, distance, packaging_duration):
+    self.drone_params[drone_idx]['order_id'] = uuid.uuid4()
     self.drone_params[drone_idx]['order_placed_at'] = order_placed_at
     self.drone_params[drone_idx]['weight'] = weight
     self.drone_params[drone_idx]['distance'] = distance
