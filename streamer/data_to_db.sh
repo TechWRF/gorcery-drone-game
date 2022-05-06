@@ -3,23 +3,6 @@
 set -e
 set -o pipefail
 
-setup_db() {
-  psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name';" | grep -q 1 || psql -d postgres -c "CREATE DATABASE $db_name;"
-  psql -d $db_name -c \
-    "CREATE TABLE IF NOT EXISTS deliveries (
-      drone_idx INT,
-      order_id TEXT,
-      order_placed_at TIMESTAMP,
-      weight FLOAT,
-      distance FLOAT,
-      packaging_duration FLOAT,
-      price FLOAT,
-      order_sent_at TIMESTAMP,
-      order_completed_at TIMESTAMP,
-      UNIQUE(order_id)
-    );"
-}
-
 stream_data() {
   data_path=$(sed -rn '/^log_path = (.+)/p' $config_path | sed "s/log_path = //g")
 
@@ -31,8 +14,8 @@ stream_data() {
     
     echo $row
     psql -d $db_name -qc \
-      "INSERT INTO deliveries(
-        drone_idx, order_id, order_placed_at, weight, distance, packaging_duration, price, order_sent_at, order_completed_at
+      "INSERT INTO management.deliveries(
+        drone_id, id, order_placed_at, weight, distance, packaging_duration, price, order_sent_at, order_completed_at
       ) VALUES ($row)
       ON CONFLICT DO NOTHING;"
   done
@@ -41,5 +24,4 @@ stream_data() {
 db_name='supermarket'
 config_path='supermarket.ini'
 
-setup_db
 stream_data
