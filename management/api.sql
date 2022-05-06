@@ -36,7 +36,7 @@ BEGIN
     'price', json_agg(price)
   )
   FROM sm_management.deliveries 
-  WHERE id = _id;
+  WHERE drone_id = _id;
 END
 $$
 ;
@@ -119,7 +119,6 @@ AS
 $$
 BEGIN
   RETURN json_build_object(
-    'id', id,
     'name', name,
     'max_load', max_load,
     'max_speed', max_speed,

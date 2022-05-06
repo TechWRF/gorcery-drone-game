@@ -12,9 +12,8 @@ stream_data() {
     for i in {0..7}; do row_arr[i]="${row_arr[i]},"; done
     row=${row_arr[@]}
     
-    echo $row
     psql -d $db_name -qc \
-      "INSERT INTO management.deliveries(
+      "INSERT INTO sm_management.deliveries(
         drone_id, id, order_placed_at, weight, distance, packaging_duration, price, order_sent_at, order_completed_at
       ) VALUES ($row)
       ON CONFLICT DO NOTHING;"
@@ -24,4 +23,6 @@ stream_data() {
 db_name='supermarket'
 config_path='supermarket.ini'
 
-stream_data
+stream_data > /dev/null 2>&1 &
+STREAM_PROCESS_ID=$!
+echo $STREAM_PROCESS_ID

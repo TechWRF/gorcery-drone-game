@@ -4,40 +4,14 @@ import random
 from dispatcher import Dispatch
 import os
 import uuid
-import configparser
-import json
 
 class SuperMarket():
-  def __init__(self, config_path = 'supermarket.ini'):
-    self.read_config(config_path)
-  
+  def __init__(self):
     self.drone_params = {}
     self.param_names = ['order_id', 'order_placed_at', 'weight', 'distance', 'packaging_duration', 'price', 'order_sent_at', 'order_completed_at']
     [self.init_drone_params(idx) for idx in range(self.drone_n)]
 
     self.init_log()
-
-  def read_config(self, config_path):
-    config = configparser.ConfigParser()
-    config.read(config_path)
-
-    self.weight_ranges_start = json.loads(config['MARKET']['weight_ranges_start'])
-    self.weight_ranges_probs = json.loads(config['MARKET']['weight_ranges_probs'])
-
-    self.distance_ranges_start = json.loads(config['MARKET']['distance_ranges_start'])
-    self.distance_ranges_probs = json.loads(config['MARKET']['distance_ranges_probs'])
-
-    self.price_per_km = float(config['MARKET']['price_per_km'])
-    self.price_per_kg = float(config['MARKET']['price_per_kg'])
-
-    self.drone_n = int(config['DRONE']['drone_n'])
-    self.max_drone_load = float(config['DRONE']['max_drone_load'])
-    self.max_drone_speed = float(config['DRONE']['max_drone_speed'])
-
-    self.time_factor = int(config['GENERAL']['time_factor'])
-    self.log_path = config['GENERAL']['log_path']
-    if len(os.path.split(self.log_path)[0]) == 0:
-      self.log_path = os.path.join(os.getcwd(), self.log_path)
 
   def init_log(self):
     if os.path.isdir(os.path.split(self.log_path)[0]) is False:
@@ -46,6 +20,15 @@ class SuperMarket():
     if os.path.isfile(self.log_path) is False: 
       with open(self.log_path, 'w') as f:
         f.write(','.join(['drone_idx'] + self.param_names))
+
+  def get_current_time(self):
+    with open(self.log_path, 'r') as f:
+      last_order_completed_at = f.readlines()[-1].split(',')[-1]
+
+    if 'order_completed_at' not in last_order_completed_at:
+      return datetime.strptime(last_order_completed_at, "%Y-%m-%d %H:%M:%S.%f")
+    else:
+      return datetime.now()
 
   def init_drone_params(self, drone_idx):
     self.drone_params[drone_idx] = {'is_dispatched': False}
@@ -101,27 +84,22 @@ class SuperMarket():
       with open(self.log_path, 'a') as f:
         f.write(log_data[:-1])
 
-  def open_shop(self, time_now = datetime.now()):
-    while True:
-      order_placed_at, weight, distance = self.place_order(time_now)
-      packages, packaging_duration = self.pack_order(weight)
-      
-      while len(self.get_free_drone_idx()) < len(packages):
-        drone_idxs = self.get_returned_drone_idx()
-        self.write_data(drone_idxs)
-        [self.init_drone_params(drone_idx) for drone_idx in drone_idxs]
-        if len(drone_idxs) == 0:
-          sleep(0.1)
+  def handle_orders(self, time_now):
+    order_placed_at, weight, distance = self.place_order(time_now)
+    packages, packaging_duration = self.pack_order(weight)
+    
+    while len(self.get_free_drone_idx()) < len(packages):
+      drone_idxs = self.get_returned_drone_idx()
+      self.write_data(drone_idxs)
+      [self.init_drone_params(drone_idx) for drone_idx in drone_idxs]
+      if len(drone_idxs) == 0:
+        sleep(0.1)
 
-      dispatches = [
-        self.command_dispatch(drone_idx, order_placed_at, weight, distance, packaging_duration)
-        for drone_idx, weight in zip(self.get_free_drone_idx(), packages)
-      ]
-      [d.start() for d in dispatches]
+    dispatches = [
+      self.command_dispatch(drone_idx, order_placed_at, weight, distance, packaging_duration)
+      for drone_idx, weight in zip(self.get_free_drone_idx(), packages)
+    ]
+    [d.start() for d in dispatches]
 
-      time_now += timedelta(minutes=packaging_duration)
-      sleep(0.1)
-
-if __name__ == '__main__':
-  super_market = SuperMarket()
-  super_market.open_shop()
+    time_now += timedelta(minutes=packaging_duration)
+    sleep(0.1)
