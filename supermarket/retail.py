@@ -42,8 +42,8 @@ class SuperMarket():
     range_end = ranges_start[end_idx]
     return random.randint(start, range_end)
 
-  def place_order(self, time_now):
-    return time_now, \
+  def place_order(self):
+    return self.time_now, \
       self.get_rand_value(self.weight_ranges_start, self.weight_ranges_probs), \
       self.get_rand_value(self.distance_ranges_start, self.distance_ranges_probs)
       
@@ -84,8 +84,8 @@ class SuperMarket():
       with open(self.log_path, 'a') as f:
         f.write(log_data[:-1])
 
-  def handle_orders(self, time_now):
-    order_placed_at, weight, distance = self.place_order(time_now)
+  def handle_orders(self):
+    order_placed_at, weight, distance = self.place_order()
     packages, packaging_duration = self.pack_order(weight)
     
     while len(self.get_free_drone_idx()) < len(packages):
@@ -101,5 +101,5 @@ class SuperMarket():
     ]
     [d.start() for d in dispatches]
 
-    time_now += timedelta(minutes=packaging_duration)
+    self.time_now += timedelta(minutes=packaging_duration)
     sleep(0.1)

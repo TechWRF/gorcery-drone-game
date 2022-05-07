@@ -36,6 +36,7 @@ CREATE TABLE sm_management.drones (
   started_serving_at TIMESTAMP,
   stopped_serving_at TIMESTAMP,
   is_active BOOLEAN,
+  price FLOAT,
   UNIQUE(id)
 );
 

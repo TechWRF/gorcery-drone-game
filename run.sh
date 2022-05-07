@@ -6,7 +6,7 @@ set -o pipefail
 create_db() {
   psql -d postgres -c "DROP DATABASE $db_name;"
   psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name';" | grep -q 1 || psql -d postgres -c "CREATE DATABASE $db_name;"
-  psql -a -q -d $db_name -f $postgrest_dir/db.sql -v "ON_ERROR_STOP=1"
+  psql -a -d $db_name -f $postgrest_dir/db.sql -v "ON_ERROR_STOP=1"
 }
 
 install_postgrest() {

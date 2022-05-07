@@ -4,8 +4,8 @@ set -e
 set -o pipefail
 
 create_api() {
-  psql -a -d $db_name -f $postgrest_dir/api.sql -v "ON_ERROR_STOP=1"
-  psql -d $db_name -c "CALL sm_management.create_api_user();"
+  psql -q -d $db_name -f $postgrest_dir/api.sql -v "ON_ERROR_STOP=1"
+  psql -q -d $db_name -c "CALL sm_management.create_api_user();"
 }
 
 start_server() {

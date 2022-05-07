@@ -29,13 +29,11 @@ class Dispatch(Thread):
     delivery_time = self.distance / drone_speed
     return_time = self.distance / self.max_drone_speed
     wait_time = delivery_time + return_time
-    #sleep(wait_time * 60 / self.time_factor)
-    sleep(wait_time / self.time_factor)
+    sleep(wait_time * 60 / self.time_factor)
     return order_sent_at + timedelta(hours=wait_time)
 
   def dispatch_drone(self):
-    #sleep(packaging_duration * 60 / time_factor)
-    sleep(self.packaging_duration / self.time_factor)
+    sleep(self.packaging_duration * 60 / self.time_factor)
     time_now = self.order_placed_at + timedelta(minutes=self.packaging_duration)
 
     order_sent_at = self.send_order(time_now)

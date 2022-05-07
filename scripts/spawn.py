@@ -3,6 +3,7 @@ import sys
 sys.path.append(os.path.join(os.getcwd(), 'supermarket'))
 
 import subprocess
+import requests
 from retail import SuperMarket
 from time import sleep
 import configparser
@@ -27,6 +28,9 @@ class Conductor(SuperMarket):
     self.price_per_km = float(config['MARKET']['price_per_km'])
     self.price_per_kg = float(config['MARKET']['price_per_kg'])
 
+    self.repair_costs = json.loads(config['REPAIRS']['repair_costs'])
+    self.repair_probs = json.loads(config['REPAIRS']['repair_probs'])
+
     self.drone_n = int(config['DRONE']['drone_n'])
     self.max_drone_load = float(config['DRONE']['max_drone_load'])
     self.max_drone_speed = float(config['DRONE']['max_drone_speed'])
@@ -36,20 +40,37 @@ class Conductor(SuperMarket):
     if len(os.path.split(self.log_path)[0]) == 0:
       self.log_path = os.path.join(os.getcwd(), self.log_path)
 
-    self.server_port = config['POSTGREST']['server-port']
+    self.server_port = int(config['POSTGREST']['server-port'])
     db_uri = config['POSTGREST']['db-uri']
     db_schema = config['POSTGREST']['db-schema']
     db_anon_role = config['POSTGREST']['db-anon-role']
 
     with open('postgrest.conf', 'w') as f:
-      f.write(f"db-uri = {db_uri}\ndb-schema = {db_schema}\ndb-anon-role = {db_anon_role}\nserver-port = {self.server_port}")
+      f.write(f'db-uri = {db_uri}\ndb-schema = {db_schema}\ndb-anon-role = {db_anon_role}\nserver-port = "{self.server_port}"')
 
+    self.server_url = f"http://localhost:{self.server_port}/rpc"
+
+  def load_drones(self):
+    drone_ids = requests.post(url="/".join([self.server_url, "get_drone_ids"])).json()
+    for i in [i for i in range(self.drone_n) if i not in drone_ids]:
+      requests.post(
+        url="/".join([self.server_url, "add_drone"]),
+        data={
+          "_id": i,
+          "_name": f"drone_{i}",
+          "_max_load": self.max_drone_load,
+          "_max_speed": self.max_drone_speed,
+          "_price": 5000,
+          "_started_serving_at": str(self.time_now)
+        }
+      )
+    
   @staticmethod
   def get_stdout(p):
     out, err = p.communicate()
     if err is not None:
       err = err.decode('utf-8').strip()
-      if len(err) > 0 and "No such process" not in err:
+      if len(err) > 0 and "No such process" not in err and 'NOTICE:' not in err:
         raise RuntimeError(err)
     return out.decode('utf-8').strip()
 
@@ -57,15 +78,17 @@ class Conductor(SuperMarket):
     self.controller['shop_open'] = True
     print("Opening Shop")
 
-    time_now = self.get_current_time()
+    self.time_now = self.get_current_time()
+    print(f"Current time: {self.time_now}")
+
     while self.controller['shop_open']:
       try:
-        self.handle_orders(time_now)
+        self.handle_orders()
       except KeyboardInterrupt:
         p = subprocess.Popen(['kill', stream_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.get_stdout(p)
 
-        p = subprocess.Popen(['kill', stream_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['kill', server_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.get_stdout(p)
 
         self.controller['streamer_running'] = False
@@ -86,6 +109,10 @@ class Conductor(SuperMarket):
         server_pid = self.get_stdout(server)
         print(f"Server is listening on port {self.server_port}")
         self.controller['server_running'] = True
+
+        sleep(1)
+        self.load_drones()
+        print("Drones loaded")
 
 if __name__ == '__main__':
   conductor = Conductor()
