@@ -96,9 +96,23 @@ LANGUAGE 'plpgsql'
 AS
 $$
 BEGIN
-  INSERT INTO sm_management.drones(id, name, max_load, max_speed, started_serving_at, stopped_serving_at, is_active, price) VALUES (
-    _id, _name, _max_load, _max_speed, _started_serving_at, _stopped_serving_at, _is_active, _price
-  );
+  INSERT INTO sm_management.drones(id, name, max_load, max_speed, started_serving_at, stopped_serving_at, is_active, price)
+  VALUES (_id, _name, _max_load, _max_speed, _started_serving_at, _stopped_serving_at, _is_active, _price)
+  ON CONFLICT DO NOTHING;
+END
+$$
+;
+
+DROP FUNCTION IF EXISTS sm_management.add_repair_type;
+CREATE FUNCTION sm_management.add_repair_type(_name TEXT, _cost FLOAT)
+RETURNS VOID
+LANGUAGE 'plpgsql'
+AS
+$$
+BEGIN
+  INSERT INTO sm_management.repair_types(name, cost)
+  VALUES (_name, _cost)
+  ON CONFLICT DO NOTHING;
 END
 $$
 ;
@@ -110,7 +124,12 @@ LANGUAGE 'plpgsql'
 AS
 $$
 BEGIN
-  UPDATE sm_management.drones SET is_active = FALSE, stopped_serving_at = _stopped_serving_at WHERE id = _id;
+  RAISE EXCEPTION 'Can''t remove last drone';
+  IF (SELECT COUNT(id) FROM sm_management.drones WHERE is_active = TRUE) > 1 THEN
+    UPDATE sm_management.drones SET is_active = FALSE, stopped_serving_at = _stopped_serving_at WHERE id = _id;
+  ELSE
+    RAISE EXCEPTION 'Can''t remove last drone';
+  END IF;
 END
 $$
 ;
@@ -149,28 +168,51 @@ END
 $$
 ;
 
-DROP FUNCTION IF EXISTS sm_management.get_drone_ids;
-CREATE FUNCTION sm_management.get_drone_ids()
-RETURNS JSON
+DROP FUNCTION IF EXISTS sm_management.repair_drone;
+CREATE FUNCTION sm_management.repair_drone(_drone_id INT, _cost FLOAT, _repair_types SMALLINT[])
+RETURNS VOID
 LANGUAGE 'plpgsql'
 AS
 $$
 BEGIN
-  RETURN CASE WHEN ids IS NULL THEN '[]'::JSON ELSE ids END FROM (
-    SELECT to_json(array_agg(id)) AS ids FROM sm_management.drones
-  ) js;
+  INSERT INTO sm_management.repairs(drone_id, cost, distance)
+  VALUES (
+    _drone_id,
+    _cost,
+    (SELECT SUM(distance) FROM sm_management.deliveries WHERE drone_id = _drone_id)
+  )
+  ON CONFLICT DO NOTHING;
 END
 $$
 ;
 
-DROP FUNCTION IF EXISTS sm_management.repair_drone;
-CREATE FUNCTION sm_management.repair_drone(_id INT)
+DROP FUNCTION IF EXISTS sm_management.get_repairs_by_drone;
+CREATE FUNCTION sm_management.get_repairs_by_drone(_id INT)
 RETURNS JSON
 LANGUAGE 'plpgsql'
 AS
 $$
 BEGIN
-  RETURN '{}';
+  RETURN json_build_object(
+    'n_repairs', COUNT(*),
+    'total_cost', SUM(cost),
+    'km_last_repair', MAX(distance),
+    'income_by_drone', (SELECT SUM(price) FROM sm_management.deliveries WHERE drone_id = _id)
+  )
+  FROM sm_management.repairs
+  WHERE drone_id = _id;
+END
+$$
+;
+
+DROP FUNCTION IF EXISTS sm_management.get_credits;
+CREATE FUNCTION sm_management.get_credits()
+RETURNS BIGINT
+LANGUAGE 'plpgsql'
+AS
+$$
+BEGIN
+  -- TODO: add get_credits()
 END
 $$
 ;

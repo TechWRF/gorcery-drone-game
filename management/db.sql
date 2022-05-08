@@ -14,6 +14,7 @@ BEGIN
 
   GRANT USAGE ON SCHEMA sm_management TO sm_manager;
   GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA sm_management TO sm_manager;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA sm_management TO sm_manager;
 
   --recreate admin
   IF (SELECT 1 FROM pg_roles WHERE rolname='sm_admin') IS NOT NULL THEN
@@ -54,15 +55,15 @@ CREATE TABLE sm_management.deliveries (
 );
 
 CREATE TABLE sm_management.repair_types (
-  id INT,
+  id SERIAL PRIMARY KEY,
   name TEXT,
   cost FLOAT,
-  UNIQUE(id)
+  UNIQUE(name)
 );
 
 CREATE TABLE sm_management.repairs (
-  id INT,
+  id SERIAL PRIMARY KEY,
   drone_id INT,
-  distance FLOAT,
-  UNIQUE(id)
+  cost FLOAT,
+  distance FLOAT
 );

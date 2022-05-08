@@ -3,15 +3,15 @@ import sys
 sys.path.append(os.path.join(os.getcwd(), 'supermarket'))
 
 import subprocess
-import requests
 from retail import SuperMarket
+from utils import call_server
 from time import sleep
 import configparser
 import json
 
 class Conductor(SuperMarket):
-  def __init__(self, config_path = 'supermarket.ini'):
-    self.read_config(config_path)
+  def __init__(self):
+    self.read_config('supermarket.ini')
     SuperMarket.__init__(self)
     self.controller = {"shop_open": False, "streamer_running": False, "server_running": False}
 
@@ -28,6 +28,8 @@ class Conductor(SuperMarket):
     self.price_per_km = float(config['MARKET']['price_per_km'])
     self.price_per_kg = float(config['MARKET']['price_per_kg'])
 
+    self.repair_names = json.loads(config['REPAIRS']['repair_names'])
+    self.n_parts = json.loads(config['REPAIRS']['n_parts'])
     self.repair_costs = json.loads(config['REPAIRS']['repair_costs'])
     self.repair_probs = json.loads(config['REPAIRS']['repair_probs'])
 
@@ -40,31 +42,27 @@ class Conductor(SuperMarket):
     if len(os.path.split(self.log_path)[0]) == 0:
       self.log_path = os.path.join(os.getcwd(), self.log_path)
 
-    self.server_port = int(config['POSTGREST']['server-port'])
+    server_port = int(config['POSTGREST']['server-port'])
     db_uri = config['POSTGREST']['db-uri']
     db_schema = config['POSTGREST']['db-schema']
     db_anon_role = config['POSTGREST']['db-anon-role']
 
     with open('postgrest.conf', 'w') as f:
-      f.write(f'db-uri = {db_uri}\ndb-schema = {db_schema}\ndb-anon-role = {db_anon_role}\nserver-port = "{self.server_port}"')
-
-    self.server_url = f"http://localhost:{self.server_port}/rpc"
+      f.write(f'db-uri = {db_uri}\ndb-schema = {db_schema}\ndb-anon-role = {db_anon_role}\nserver-port = "{server_port}"')
 
   def load_drones(self):
-    drone_ids = requests.post(url="/".join([self.server_url, "get_drone_ids"])).json()
-    for i in [i for i in range(self.drone_n) if i not in drone_ids]:
-      requests.post(
-        url="/".join([self.server_url, "add_drone"]),
-        data={
-          "_id": i,
-          "_name": f"drone_{i}",
-          "_max_load": self.max_drone_load,
-          "_max_speed": self.max_drone_speed,
-          "_price": 5000,
-          "_started_serving_at": str(self.time_now)
-        }
+    for i in range(1, self.drone_n + 1):
+      call_server("add_drone",
+      {"_id": i, "_name": f"drone_{i}", "_max_load": self.max_drone_load, "_max_speed": self.max_drone_speed,
+      "_price": 5000, "_started_serving_at": str(self.time_now)}
+    )
+
+  def add_repair_types(self):
+    for name, cost in zip(self.repair_names, self.repair_costs):
+      call_server("add_repair_type",
+        {"_name": name, "_cost": cost }
       )
-    
+
   @staticmethod
   def get_stdout(p):
     out, err = p.communicate()
@@ -75,6 +73,8 @@ class Conductor(SuperMarket):
     return out.decode('utf-8').strip()
 
   def open_shop(self):
+    # TODO: add logging
+    # TODO: escape sleep
     self.controller['shop_open'] = True
     print("Opening Shop")
 
@@ -85,12 +85,12 @@ class Conductor(SuperMarket):
       try:
         self.handle_orders()
       except KeyboardInterrupt:
-        p = subprocess.Popen(['kill', stream_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.get_stdout(p)
-
-        p = subprocess.Popen(['kill', server_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.get_stdout(p)
-
+        self.get_stdout(
+          subprocess.Popen(['kill', stream_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        )
+        self.get_stdout(
+          subprocess.Popen(['kill', server_pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        )
         self.controller['streamer_running'] = False
         self.controller['shop_open'] = False
         print("\nStreamer stopped\nServer stopped\nShop closed")
@@ -98,21 +98,24 @@ class Conductor(SuperMarket):
       if self.controller['streamer_running'] is False and self.controller['shop_open']:
         print("Shop open\nStarting Streamer")
         sleep(1)
-        streamer = subprocess.Popen(['./scripts/streamer.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stream_pid = self.get_stdout(streamer)
+        stream_pid = self.get_stdout(
+          subprocess.Popen(['./scripts/streamer.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        )
         print("Streamer is running")
         self.controller['streamer_running'] = True
 
       if self.controller['server_running'] is False and self.controller['shop_open']:
-        print("Starting server")
-        server = subprocess.Popen(['./scripts/server.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        server_pid = self.get_stdout(server)
-        print(f"Server is listening on port {self.server_port}")
+        server_pid = self.get_stdout(
+          subprocess.Popen(['./scripts/server.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        )
+        print("Server started")
         self.controller['server_running'] = True
 
         sleep(1)
         self.load_drones()
         print("Drones loaded")
+        self.add_repair_types()
+        print("Repair types added")
 
 if __name__ == '__main__':
   conductor = Conductor()
