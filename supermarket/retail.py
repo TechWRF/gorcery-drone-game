@@ -11,18 +11,8 @@ class SuperMarket():
     self.param_names = ['order_id', 'order_placed_at', 'weight', 'distance', 'packaging_duration', 'price', 'order_sent_at', 'order_completed_at']
     [self.init_drone_params(idx) for idx in range(self.drone_n)]
 
-    self.init_log()
-
-  def init_log(self):
-    if os.path.isdir(os.path.split(self.log_path)[0]) is False:
-      raise Exception(f'Please create required dirs manually for: {self.log_path}')
-    
-    if os.path.isfile(self.log_path) is False: 
-      with open(self.log_path, 'w') as f:
-        f.write(','.join(['drone_idx'] + self.param_names))
-
   def get_current_time(self):
-    with open(self.log_path, 'r') as f:
+    with open(self.data_path, 'r') as f:
       last_order_completed_at = f.readlines()[-1].split(',')[-1]
 
     if 'order_completed_at' not in last_order_completed_at:
@@ -81,7 +71,7 @@ class SuperMarket():
       log_data += f'{drone_idx},{params}\n'
 
     if len(log_data) > 1:
-      with open(self.log_path, 'a') as f:
+      with open(self.data_path, 'a') as f:
         f.write(log_data[:-1])
 
   def handle_orders(self):

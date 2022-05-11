@@ -17,8 +17,7 @@ class Dispatch(Thread):
     self.time_factor = time_factor
 
   def run(self):
-    self._return = self.dispatch_drone()
-    return self._return
+    return self.dispatch_drone()
 
   @staticmethod
   def send_order(time_now):
