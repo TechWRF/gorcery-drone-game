@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Single Page App</title>
+  <link rel="stylesheet" href="/face/static/css/index.css">
+</head>
+<body>
+  <nav class="menu">
+    <a href="/" class="nav__link" data-link>Game</a>
+    <a href="/drones" class="nav__link" data-link>Drones</a>
+    <a href="/settings" class="nav__link" data-link>Settings</a>
+    <button class="menu_button start">
+      <img src="face/static/png/pause.png"/>
+    </button>
+    <button class="menu_button pause">
+      <img src="face/static/png/start.png"/>
+    </button>
+  </nav>
+  <div id="app"></div>
+  <script type="module" src="/face/static/index.js"></script>
+</body>

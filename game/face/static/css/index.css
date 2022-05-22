@@ -1,0 +1,56 @@
+body {
+  --tab-color: rgb(141, 115, 115);
+  --tab-font: 24px;
+  --tab-button-height: 48px;
+  font-family: 'Quicksand', sans-serif;
+}
+
+nav {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--tab-color);
+  font-size: var(--tab-font);
+}
+
+.nav__link {
+  color: #a7bdff;
+  font-weight: 500;
+  margin: 5px 5px;
+  padding: 12px 12px;
+}
+
+#app {
+  margin: 2em;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+a {
+  float: left;
+  display: block;
+  text-decoration: none;
+  background-color: var(--tab-color);
+}
+
+a:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.menu_button {
+  padding: 0px 0px;
+  margin: 5px 0px;
+  border: none;
+  background-color: var(--tab-color);
+  transition-duration: 0.4s;
+  cursor: pointer;
+}
+
+.menu_button:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.menu img{
+  height: var(--tab-button-height);
+}

@@ -2,3 +2,4 @@ supermarket/__pycache__/
 supermarket_data/
 supermarket.ini
 postgrest.conf
+game/node_modules
